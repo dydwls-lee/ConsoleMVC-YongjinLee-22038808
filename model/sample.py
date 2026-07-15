@@ -10,7 +10,13 @@ from_dict) still use the schema key "yield".
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
+
+# Matches data-persistence's `_SAMPLE_ID_PATTERN` (docs/SCHEMA.md: "S-NNN"),
+# so both modules reject the same malformed ids instead of console-mvc
+# passing through ids that data-persistence would reject later.
+_SAMPLE_ID_PATTERN = re.compile(r"^S-\d{3,}$")
 
 
 @dataclass
@@ -22,8 +28,8 @@ class Sample:
     stock: int
 
     def __post_init__(self) -> None:
-        if not self.id:
-            raise ValueError("id must not be empty")
+        if not _SAMPLE_ID_PATTERN.match(self.id):
+            raise ValueError(f"invalid sample id format: {self.id!r} (expected 'S-NNN')")
         if not self.name:
             raise ValueError("name must not be empty")
         if self.avg_production_time <= 0:

@@ -23,6 +23,10 @@ def test_creates_valid_sample():
     "field, value",
     [
         ("id", ""),
+        ("id", "S001"),  # missing hyphen
+        ("id", "S-1"),  # fewer than 3 digits
+        ("id", "s-001"),  # wrong case prefix
+        ("id", "X-001"),  # wrong prefix
         ("name", ""),
         ("avg_production_time", 0),
         ("avg_production_time", -1),
@@ -44,6 +48,13 @@ def test_rejects_invalid_fields(field, value):
 
     with pytest.raises(ValueError):
         Sample(**kwargs)
+
+
+@pytest.mark.parametrize("valid_id", ["S-001", "S-999", "S-1234"])
+def test_accepts_ids_matching_s_nnn_format(valid_id):
+    sample = Sample(id=valid_id, name="시료", avg_production_time=0.5, yield_rate=0.9, stock=0)
+
+    assert sample.id == valid_id
 
 
 def test_to_dict_uses_schema_field_names():
