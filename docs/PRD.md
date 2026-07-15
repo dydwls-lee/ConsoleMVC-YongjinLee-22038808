@@ -1,6 +1,6 @@
 # PRD — console-mvc (MVC 스켈레톤)
 
-상위 컨텍스트: [../../PRD.md](../../PRD.md)
+상위 컨텍스트: [../../../docs/PRD.md](../../../docs/PRD.md)
 
 ## 목적
 
@@ -9,7 +9,7 @@
 ## 패키지 구조 (최소)
 
 ```
-model/        - Sample, Order 등 도메인 엔티티 (필드 정의는 ../SCHEMA.md가 원천)
+model/        - Sample, Order 등 도메인 엔티티 (필드 정의는 ../../../docs/SCHEMA.md가 원천)
 view/         - 콘솔 출력 담당. 메뉴 렌더링, 입력 프롬프트, 결과 표시. 비즈니스 로직 없음
 controller/   - 사용자 입력을 받아 Model/Service 호출 후 View에 결과 전달
 app / main    - 메인 루프 진입점. 메뉴 선택 → Controller 라우팅
