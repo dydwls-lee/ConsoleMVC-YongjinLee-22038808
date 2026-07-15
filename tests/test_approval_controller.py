@@ -99,6 +99,52 @@ class TestApprove:
             controller.approve("ORD-missing")
 
 
+class TestPreviewApproval:
+    """preview_approval() must report what approve() WOULD do, without
+    mutating any state (no stock change, no queue enqueue, order stays
+    RESERVED) — so the caller can show the operator the production cost
+    and ask for confirmation before actually committing to it.
+    """
+
+    def test_sufficient_stock_reports_sufficient_without_side_effects(
+        self, sample_repo, order_repo, production_queue
+    ):
+        add_reserved_order(order_repo, "ORD-1", quantity=10)
+        controller = ApprovalController(order_repo, sample_repo, production_queue)
+
+        preview = controller.preview_approval("ORD-1")
+
+        assert preview == {"sufficient": True}
+        assert sample_repo.get("S-001").stock == 100
+        assert order_repo.get("ORD-1").status == OrderStatus.RESERVED
+        assert len(production_queue) == 0
+
+    def test_insufficient_stock_reports_shortage_and_production_cost_without_side_effects(
+        self, sample_repo, order_repo, production_queue
+    ):
+        add_reserved_order(order_repo, "ORD-1", quantity=150)
+        controller = ApprovalController(order_repo, sample_repo, production_queue)
+
+        preview = controller.preview_approval("ORD-1")
+
+        # shortage = 150 - 100 = 50, ceil(50/0.3) = 167, total_time = 2.0*167
+        assert preview == {
+            "sufficient": False,
+            "shortage": 50,
+            "actualQuantity": 167,
+            "totalTime": 334.0,
+        }
+        assert sample_repo.get("S-001").stock == 100
+        assert order_repo.get("ORD-1").status == OrderStatus.RESERVED
+        assert len(production_queue) == 0
+
+    def test_rejects_unknown_order(self, sample_repo, order_repo, production_queue):
+        controller = ApprovalController(order_repo, sample_repo, production_queue)
+
+        with pytest.raises(ValueError):
+            controller.preview_approval("ORD-missing")
+
+
 class TestReject:
     def test_rejects_reserved_order(self, sample_repo, order_repo, production_queue):
         add_reserved_order(order_repo, "ORD-1")

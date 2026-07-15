@@ -141,10 +141,33 @@ class App:
     def _approve_order(self) -> None:
         try:
             order_id = self.io.prompt("승인할 주문번호: ")
-            result = self.approval_controller.approve(order_id)
-            self.io.show(f"승인 처리 완료: {result['status']}")
+            preview = self.approval_controller.preview_approval(order_id)
+            if preview["sufficient"] or self._confirm_shortage_production(preview):
+                result = self.approval_controller.approve(order_id)
+                self.io.show(self._render_approval_result(result))
+            else:
+                result = self.approval_controller.reject(order_id)
+                self.io.show(f"거절 처리 완료: {result['status']}")
         except ValueError as e:
             self.io.show_error(str(e))
+
+    def _confirm_shortage_production(self, preview: dict) -> bool:
+        self.io.show(
+            f"재고 부족. 부족분 {preview['shortage']} ea 생산 승인하시겠습니까? "
+            f"(실생산량 {preview['actualQuantity']} ea / {preview['totalTime']} min)"
+        )
+        answer = self.io.prompt("[Y] 승인  [N] 거절: ")
+        return answer.strip().upper() == "Y"
+
+    @staticmethod
+    def _render_approval_result(result: dict) -> str:
+        job = result.get("job")
+        if job is None:
+            return f"승인 처리 완료: {result['status']}"
+        return (
+            f"승인 처리 완료: {result['status']} "
+            f"(실생산량 {job.actual_quantity} ea / {job.total_time} min)"
+        )
 
     def _reject_order(self) -> None:
         try:

@@ -58,7 +58,7 @@ def test_insufficient_stock_routes_order_to_producing_queue():
         app,
         [
             "2", "1", "S-001", "고객사", "10", "0",  # 재고 0 -> 전량 부족분
-            "3", "2", "ORD-20260416-0001", "0",
+            "3", "2", "ORD-20260416-0001", "Y", "0",  # 부족분 안내 -> Y로 재확인
             "5", "1", "0",
             "0",
         ],
@@ -68,6 +68,58 @@ def test_insufficient_stock_routes_order_to_producing_queue():
     assert order.status == OrderStatus.PRODUCING
     assert len(app.production_queue) == 1
     assert any("ORD-20260416-0001" in line for line in printed)
+    # shortage=10, yield=0.5 -> actual_quantity=20, total_time=2.0*20=40.0
+    assert any("부족분 10" in line and "실생산량 20" in line and "40.0" in line for line in printed)
+
+
+def test_insufficient_stock_approval_declined_rejects_order_instead():
+    """When the operator answers N to the shortage confirmation, the order
+    must be REJECTED, not silently left RESERVED or forced to PRODUCING.
+    """
+    app = make_app()
+
+    run_with_inputs(app, ["1", "1", "S-001", "웨이퍼", "2.0", "0.5", "0", "0"])
+
+    printed = run_with_inputs(
+        app,
+        [
+            "2", "1", "S-001", "고객사", "10", "0",
+            "3", "2", "ORD-20260416-0001", "N", "0",
+            "0",
+        ],
+    )
+
+    order = app.order_repo.get("ORD-20260416-0001")
+    assert order.status == OrderStatus.REJECTED
+    assert len(app.production_queue) == 0
+    assert any("거절 처리 완료" in line for line in printed)
+
+
+def test_sufficient_stock_approval_skips_confirmation_prompt():
+    """The shortage confirmation step only applies to the PRODUCING branch
+    — when stock is sufficient, approval must remain a single-step action
+    (no extra Y/N prompt), matching the existing sufficient-stock test's
+    input sequence.
+    """
+    app = make_app()
+
+    run_with_inputs(app, ["1", "1", "S-001", "웨이퍼", "0.5", "0.9", "0", "0"])
+    sample = app.sample_repo.get("S-001")
+    sample.stock = 50
+    app.sample_repo.update(sample)
+
+    printed = run_with_inputs(
+        app,
+        [
+            "2", "1", "S-001", "고객사", "10", "0",
+            "3", "2", "ORD-20260416-0001", "0",
+            "0",
+        ],
+    )
+
+    order = app.order_repo.get("ORD-20260416-0001")
+    assert order.status == OrderStatus.CONFIRMED
+    assert any("승인 처리 완료: CONFIRMED" in line for line in printed)
 
 
 def test_invalid_menu_choice_shows_error_and_does_not_crash():

@@ -25,6 +25,34 @@ class ApprovalController:
     def list_reserved(self) -> list[dict]:
         return [o.to_dict() for o in self._orders.list_by_status(OrderStatus.RESERVED)]
 
+    def preview_approval(self, order_id: str) -> dict:
+        """Report what `approve(order_id)` WOULD do, without mutating any
+        state — so a caller can show the operator the shortage/production
+        cost and ask for confirmation before actually committing to it.
+        """
+        order = self._get_reserved_order(order_id)
+        sample = self._samples.get(order.sample_id)
+        if sample is None:
+            raise ValueError(f"unknown sample id: {order.sample_id}")
+
+        if sample.stock >= order.quantity:
+            return {"sufficient": True}
+
+        shortage = order.quantity - sample.stock
+        job = ProductionJob.from_shortage(
+            order_id=order.order_id,
+            sample_id=sample.id,
+            shortage=shortage,
+            yield_rate=sample.yield_rate,
+            avg_production_time=sample.avg_production_time,
+        )
+        return {
+            "sufficient": False,
+            "shortage": shortage,
+            "actualQuantity": job.actual_quantity,
+            "totalTime": job.total_time,
+        }
+
     def approve(self, order_id: str) -> dict:
         order = self._get_reserved_order(order_id)
         sample = self._samples.get(order.sample_id)
