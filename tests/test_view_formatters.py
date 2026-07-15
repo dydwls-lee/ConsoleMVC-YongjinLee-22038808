@@ -73,6 +73,16 @@ def test_render_stock_status():
     assert "부족" in text
 
 
+def test_render_stock_status_shows_classification_legend():
+    rows = [{"id": "S-001", "name": "웨이퍼", "stock": 5, "demand": 20, "status": "부족"}]
+
+    text = formatters.render_stock_status(rows)
+
+    assert "여유" in text.splitlines()[0]
+    assert "부족" in text.splitlines()[0]
+    assert "고갈" in text.splitlines()[0]
+
+
 def _display_width(text: str) -> int:
     import unicodedata
 
@@ -94,7 +104,7 @@ def test_render_stock_status_aligns_status_column_regardless_of_korean_name_leng
     ]
 
     text = formatters.render_stock_status(rows)
-    data_lines = text.splitlines()[1:]
+    data_lines = text.splitlines()[2:]  # skip the legend line and the header row
 
     status_columns = {
         _display_width(line[: line.index(status)])

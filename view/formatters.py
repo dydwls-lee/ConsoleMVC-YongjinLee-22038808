@@ -80,7 +80,10 @@ def render_status_counts(counts: dict) -> str:
 def render_stock_status(rows: list[dict]) -> str:
     if not rows:
         return "등록된 시료가 없습니다."
-    lines = ["ID       이름                 재고    수요     상태"]
+    lines = [
+        "(기준: 여유=재고>=수요 / 부족=0<재고<수요 / 고갈=재고=0, 수요=RESERVED+PRODUCING+CONFIRMED 주문 수량 합)",
+        "ID       이름                 재고    수요     상태",
+    ]
     for r in rows:
         lines.append(
             f"{_pad(r['id'], 8)} {_pad(r['name'], 20)} "
