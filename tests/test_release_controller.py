@@ -52,6 +52,14 @@ class TestRelease:
         with pytest.raises(ValueError):
             controller.release("ORD-1")
 
+    def test_rejects_releasing_an_already_released_order(self, order_repo):
+        add_order(order_repo, "ORD-1", OrderStatus.CONFIRMED)
+        controller = ReleaseController(order_repo)
+        controller.release("ORD-1")  # first release: CONFIRMED -> RELEASE
+
+        with pytest.raises(ValueError):
+            controller.release("ORD-1")
+
     def test_rejects_unknown_order(self, order_repo):
         controller = ReleaseController(order_repo)
 

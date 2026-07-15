@@ -67,6 +67,20 @@ class TestApprove:
         assert order_repo.get("ORD-1").status == OrderStatus.CONFIRMED
         assert len(production_queue) == 0
 
+    def test_quantity_exactly_equal_to_stock_is_treated_as_sufficient(
+        self, sample_repo, order_repo, production_queue
+    ):
+        # Boundary: stock >= quantity means an exact match still counts as
+        # "sufficient" (no production job), not "insufficient by 0".
+        add_reserved_order(order_repo, "ORD-1", quantity=100)
+        controller = ApprovalController(order_repo, sample_repo, production_queue)
+
+        result = controller.approve("ORD-1")
+
+        assert result["status"] == "CONFIRMED"
+        assert sample_repo.get("S-001").stock == 0
+        assert len(production_queue) == 0
+
     def test_insufficient_stock_moves_to_producing_and_enqueues_job(
         self, sample_repo, order_repo, production_queue
     ):
@@ -137,6 +151,16 @@ class TestPreviewApproval:
         assert sample_repo.get("S-001").stock == 100
         assert order_repo.get("ORD-1").status == OrderStatus.RESERVED
         assert len(production_queue) == 0
+
+    def test_quantity_exactly_equal_to_stock_reports_sufficient(
+        self, sample_repo, order_repo, production_queue
+    ):
+        add_reserved_order(order_repo, "ORD-1", quantity=100)
+        controller = ApprovalController(order_repo, sample_repo, production_queue)
+
+        preview = controller.preview_approval("ORD-1")
+
+        assert preview == {"sufficient": True}
 
     def test_rejects_unknown_order(self, sample_repo, order_repo, production_queue):
         controller = ApprovalController(order_repo, sample_repo, production_queue)

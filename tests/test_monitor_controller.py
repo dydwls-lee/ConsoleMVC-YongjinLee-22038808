@@ -70,3 +70,32 @@ def test_stock_status_classifies_samples(sample_repo, order_repo):
     assert result["S-001"]["status"] == "여유"  # stock 100 >= demand 10
     assert result["S-002"]["status"] == "부족"  # stock 5 < demand 20
     assert result["S-003"]["status"] == "고갈"  # stock 0
+
+
+def test_stock_status_treats_stock_exactly_equal_to_demand_as_sufficient():
+    # Boundary: stock >= demand counts as "여유", not "부족", when they're
+    # exactly equal.
+    sample_repo = InMemorySampleRepository()
+    sample_repo.add(Sample(id="S-010", name="딱맞는시료", avg_production_time=0.5, yield_rate=0.9, stock=10))
+    order_repo = InMemoryOrderRepository()
+    order_repo.add(
+        Order(order_id="ORD-10", sample_id="S-010", customer_name="고객", quantity=10, created_at="2026-04-16T09:00:00")
+    )
+    controller = MonitorController(order_repo, sample_repo)
+
+    result = {row["id"]: row for row in controller.stock_status()}
+
+    assert result["S-010"]["status"] == "여유"
+
+
+def test_stock_status_zero_stock_is_depleted_even_with_zero_demand():
+    # Boundary: "고갈" is defined purely by stock == 0, regardless of
+    # whether there's any outstanding demand at all.
+    sample_repo = InMemorySampleRepository()
+    sample_repo.add(Sample(id="S-011", name="무주문시료", avg_production_time=0.5, yield_rate=0.9, stock=0))
+    order_repo = InMemoryOrderRepository()
+    controller = MonitorController(order_repo, sample_repo)
+
+    result = {row["id"]: row for row in controller.stock_status()}
+
+    assert result["S-011"]["status"] == "고갈"
