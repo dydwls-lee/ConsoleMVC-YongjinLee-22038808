@@ -73,6 +73,36 @@ def test_render_stock_status():
     assert "부족" in text
 
 
+def _display_width(text: str) -> int:
+    import unicodedata
+
+    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1 for ch in text)
+
+
+def test_render_stock_status_aligns_status_column_regardless_of_korean_name_length():
+    """Regression test: Korean characters render as double-width in a
+    terminal, but Python's str.ljust pads by character COUNT, not display
+    width. Rows with a different mix of Korean/ASCII in the name column
+    used to drift out of alignment as a result. Every row's "상태" column
+    should now start at the same terminal COLUMN once padded (not
+    necessarily the same character index, since Korean text is shorter in
+    character count for the same display width).
+    """
+    rows = [
+        {"id": "S-001", "name": "웨이퍼A", "stock": 90, "demand": 13, "status": "여유"},
+        {"id": "S-002", "name": "W", "stock": 0, "demand": 10, "status": "고갈"},
+    ]
+
+    text = formatters.render_stock_status(rows)
+    data_lines = text.splitlines()[1:]
+
+    status_columns = {
+        _display_width(line[: line.index(status)])
+        for line, status in zip(data_lines, ("여유", "고갈"))
+    }
+    assert len(status_columns) == 1
+
+
 def test_render_production_queue_shows_current_and_pending():
     current = {"orderId": "ORD-1", "sampleId": "S-001", "actualQuantity": 30, "totalTime": 60.0}
     pending = [{"orderId": "ORD-2", "sampleId": "S-002", "actualQuantity": 10, "totalTime": 20.0}]

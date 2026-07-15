@@ -8,6 +8,8 @@ here — the View only formats what it is given.
 
 from __future__ import annotations
 
+import unicodedata
+
 MAIN_MENU_OPTIONS = [
     (1, "시료 관리"),
     (2, "시료 주문"),
@@ -17,6 +19,21 @@ MAIN_MENU_OPTIONS = [
     (6, "출고 처리"),
     (0, "종료"),
 ]
+
+
+def _display_width(text: str) -> int:
+    """Terminal column width of `text`, counting East Asian Wide/Fullwidth
+    characters (e.g. Korean) as 2 columns instead of Python's default 1.
+    """
+    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1 for ch in text)
+
+
+def _pad(text: str, width: int) -> str:
+    """Left-justify `text` to `width` terminal columns (not `len(text)`
+    characters), so columns stay aligned even when Korean and ASCII text
+    are mixed within the same table.
+    """
+    return text + " " * max(width - _display_width(text), 0)
 
 
 def render_main_menu(summary: dict) -> str:
@@ -36,7 +53,8 @@ def render_samples(samples: list[dict]) -> str:
     lines = ["ID       이름                 평균생산시간  수율   재고"]
     for s in samples:
         lines.append(
-            f"{s['id']:<8} {s['name']:<20} {s['avgProductionTime']:<12} {s['yield']:<6} {s['stock']}"
+            f"{_pad(s['id'], 8)} {_pad(s['name'], 20)} "
+            f"{_pad(str(s['avgProductionTime']), 12)} {_pad(str(s['yield']), 6)} {s['stock']}"
         )
     return "\n".join(lines)
 
@@ -47,8 +65,8 @@ def render_orders(orders: list[dict]) -> str:
     lines = ["주문번호               시료ID  고객명       수량   상태        접수시각"]
     for o in orders:
         lines.append(
-            f"{o['orderId']:<22} {o['sampleId']:<7} {o['customerName']:<12} "
-            f"{o['quantity']:<6} {o['status']:<10} {o['createdAt']}"
+            f"{_pad(o['orderId'], 22)} {_pad(o['sampleId'], 7)} {_pad(o['customerName'], 12)} "
+            f"{_pad(str(o['quantity']), 6)} {_pad(o['status'], 10)} {o['createdAt']}"
         )
     return "\n".join(lines)
 
@@ -64,7 +82,10 @@ def render_stock_status(rows: list[dict]) -> str:
         return "등록된 시료가 없습니다."
     lines = ["ID       이름                 재고    수요     상태"]
     for r in rows:
-        lines.append(f"{r['id']:<8} {r['name']:<20} {r['stock']:<7} {r['demand']:<8} {r['status']}")
+        lines.append(
+            f"{_pad(r['id'], 8)} {_pad(r['name'], 20)} "
+            f"{_pad(str(r['stock']), 7)} {_pad(str(r['demand']), 8)} {r['status']}"
+        )
     return "\n".join(lines)
 
 
