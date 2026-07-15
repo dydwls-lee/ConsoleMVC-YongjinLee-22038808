@@ -94,3 +94,26 @@ def test_reject_order_sets_rejected_status():
     order = app.order_repo.get("ORD-20260416-0001")
     assert order.status == OrderStatus.REJECTED
     assert any("거절 처리 완료" in line for line in printed)
+
+
+def test_history_menu_shows_rejected_orders_unlike_monitor_menu():
+    app = make_app()
+
+    # 시료 등록 -> 주문 -> 거절 (REJECTED)
+    run_with_inputs(
+        app,
+        [
+            "1", "1", "S-001", "웨이퍼", "0.5", "0.9", "0",
+            "2", "1", "S-001", "고객사", "3", "0",
+            "3", "3", "ORD-20260416-0001", "0",
+            "0",
+        ],
+    )
+
+    # 모니터링 메뉴(상태별 집계)는 REJECTED를 제외해야 한다
+    monitor_printed = run_with_inputs(app, ["4", "1", "0", "0"])
+    assert not any("REJECTED: 1" in line for line in monitor_printed)
+
+    # 시료 주문 메뉴의 "전체 주문 조회"는 REJECTED 주문도 그대로 보여줘야 한다
+    history_printed = run_with_inputs(app, ["2", "2", "0", "0"])
+    assert any("ORD-20260416-0001" in line and "REJECTED" in line for line in history_printed)

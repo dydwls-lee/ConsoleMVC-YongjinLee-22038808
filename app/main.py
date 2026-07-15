@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Callable
 
 from controller.approval_controller import ApprovalController
+from controller.history_controller import HistoryController
 from controller.monitor_controller import MonitorController
 from controller.order_controller import OrderController
 from controller.production_controller import ProductionController
@@ -44,6 +45,7 @@ class App:
         self.summary_controller = SummaryController(
             self.sample_repo, self.order_repo, self.production_queue
         )
+        self.history_controller = HistoryController(self.order_repo)
 
         self._main_actions = {
             "1": self._sample_menu,
@@ -99,12 +101,14 @@ class App:
     # -- 시료 주문 -----------------------------------------------------
     def _order_menu(self) -> None:
         while True:
-            self.io.show("[시료 주문] 1.주문접수 0.뒤로가기")
+            self.io.show("[시료 주문] 1.주문접수 2.전체 주문 조회 0.뒤로가기")
             choice = self.io.prompt("선택: ")
             if choice == "0":
                 return
             if choice == "1":
                 self._place_order()
+            elif choice == "2":
+                self.io.show(formatters.render_orders(self.history_controller.list_all()))
             else:
                 self.io.show_error("올바른 메뉴 번호를 입력하세요.")
 
